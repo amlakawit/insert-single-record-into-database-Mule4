@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="8849ab4a-0232-46d1-9e9d-148694c11202" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="a0c98884-eb43-4202-9837-dabb50318cf7" file="config.yaml" />
+	<db:config name="MySql_Database_Config" doc:name="Database Config" doc:id="63f023e6-503a-4c92-b0fc-2412c668e60a" >
+		<db:my-sql-connection host="${mysql.host}" port="${mysql.port}" user="${mysql.user}" password="${mysql.password}" database="${mysql.database}" />
+	</db:config>
+	<db:config name="Postgres.Database_Config" doc:name="Database Config" doc:id="90c71687-b4ec-4937-a15f-588ca7d3d0d6" >
+		<db:generic-connection url="${postgres.url}" driverClassName="${postgres.dclass}" user="${postgres.username}" password="${postgres.password}" />
+	</db:config>
+	<flow name="insert-data-into-databaseFlow" doc:id="6d92330f-a04a-4c24-806e-d0ed33d9e2a7" >
+		<http:listener doc:name="/POST" doc:id="efe80260-b984-4d86-a438-14196f194792" config-ref="HTTP_Listener_config" path="/singleInsert" allowedMethods="POST"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="cf20b61c-4bb0-4dfc-a79f-437aac93d148" >
+			<route >
+				<db:insert doc:name="MySql" doc:id="a9d38ede-aeb8-4765-939e-bcad03aa4074" config-ref="MySql_Database_Config">
+					<db:sql ><![CDATA[INSERT INTO customers (CustomerID, CustomerName, ContactName, Address, City, PostalCode, Country)
+VALUES (:CustomerID, :CustomerName, :ContactName, :Address, :City, :PostalCode, :Country);
+]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+'CustomerID': payload.CustomerID,
+'CustomerName': payload.CustomerName, 
+'ContactName': payload.ContactName, 
+'Address':payload.Address,
+ 'City': payload.City, 
+ 'PostalCode': payload.PostalCode, 
+ 'Country': payload.Country
+}]]]></db:input-parameters>
+				</db:insert>
+			</route>
+			<route >
+				<db:insert doc:name="Postgres" doc:id="b9e3b80a-9227-4813-8a3f-fed10a6e6f8c" config-ref="Postgres.Database_Config">
+					<db:sql ><![CDATA[INSERT INTO customers (CustomerID, CustomerName, ContactName, Address, City, PostalCode, Country)
+VALUES (:CustomerID, :CustomerName, :ContactName, :Address, :City, :PostalCode, :Country);
+]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+'CustomerID': payload.CustomerID,
+'CustomerName': payload.CustomerName, 
+'ContactName': payload.ContactName, 
+'Address':payload.Address,
+ 'City': payload.City, 
+ 'PostalCode': payload.PostalCode, 
+ 'Country': payload.Country
+}]]]></db:input-parameters>
+				</db:insert>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Response" doc:id="381ad8df-6b8d-4340-a29c-572df8617687" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	'Message': "Customer data inserted successfully!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
